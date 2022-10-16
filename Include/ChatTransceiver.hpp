@@ -30,37 +30,37 @@ bool open_shared_memory(HANDLE h_map_file);
 // This is used for the app to use the plugin for its intended purpose
 class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported function GetPluginVersion() should return 1 if you are deriving from this InternalsPluginV01, 2 for InternalsPluginV02, etc.
 {
-
  public:
-
   // Constructor/destructor
-  ChatTransceiverPlugin() {}
-  ~ChatTransceiverPlugin() {}
+  ChatTransceiverPlugin() = default;
+  ~ChatTransceiverPlugin() override = default;
 
   // These are the functions derived from base class InternalsPlugin
   // that can be implemented.
-  void Startup( long version );  // game startup
-  void Shutdown();               // game shutdown
+  void Startup( long version ) override;  // game startup
+  void Shutdown() override;               // game shutdown
 
-  void EnterRealtime();          // entering realtime
-  void ExitRealtime();           // exiting realtime
+  void EnterRealtime() override;          // entering realtime
+  void ExitRealtime() override;           // exiting realtime
 
-  void StartSession();           // session has started
-  void EndSession();             // session has ended
-
-  // Shared Memory
-  HANDLE h_map_file;
-  std::string next_message;
+  void StartSession() override;           // session has started
+  void EndSession() override;             // session has ended
  
   // Methods
-  bool WantsToDisplayMessage( MessageInfoV01 &msg_info);
-  void open_shared_memory();
-  void close_shared_memory();
-  std::string read_shared_memory();
- 
+  bool WantsToDisplayMessage( MessageInfoV01 &msg_info) override;
  private:
-  double mET;  // needed for the hardware example
-  bool mEnabled; // needed for the hardware example
+  double mET{};  // needed for the hardware example
+  bool mEnabled{}; // needed for the hardware example
+  bool inside_realtime_;
+  bool displayed_welcome_message_ = false;
+ 
+  // Shared Memory
+  HANDLE h_map_file_;
+  std::string last_message_;
+
+  void open_shared_memory();
+  void close_shared_memory() const;
+  std::string read_shared_memory() const;
 };
 
 
