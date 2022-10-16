@@ -20,9 +20,12 @@
 #define _INTERNALS_EXAMPLE_H
 
 #include <string>
+#include <windows.h>
+#include <conio.h>
+#include <tchar.h>
 
 #include "InternalsPlugin.hpp"
-
+bool open_shared_memory(HANDLE h_map_file);
 
 // This is used for the app to use the plugin for its intended purpose
 class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported function GetPluginVersion() should return 1 if you are deriving from this InternalsPluginV01, 2 for InternalsPluginV02, etc.
@@ -46,11 +49,15 @@ class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported f
   void EndSession();             // session has ended
 
   // Shared Memory
+  HANDLE h_map_file;
   std::string next_message;
  
-  //
+  // Methods
   bool WantsToDisplayMessage( MessageInfoV01 &msg_info);
-
+  void open_shared_memory();
+  void close_shared_memory();
+  std::string read_shared_memory();
+ 
  private:
   double mET;  // needed for the hardware example
   bool mEnabled; // needed for the hardware example
