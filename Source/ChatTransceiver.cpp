@@ -45,10 +45,11 @@ void __cdecl DestroyPluginObject( PluginObject *obj )  { delete( (ChatTransceive
 // Constants
 TCHAR shared_memory_name[] = "rF2_ChatTransceiver_SM";
 
+
 void ChatTransceiverPlugin::Startup( long version )
 {
   // default HW control enabled to true
-  mEnabled = true;
+  m_enabled_ = true;
   open_shared_memory();
 }
 
@@ -74,15 +75,15 @@ void ChatTransceiverPlugin::EndSession()
 void ChatTransceiverPlugin::EnterRealtime()
 {
   // start up timer every time we enter realtime
-  mET = 0.0;
-  inside_realtime_ = true;
+  m_et_ = 0.0;
 }
 
 
 void ChatTransceiverPlugin::ExitRealtime()
 {
-  inside_realtime_ = false;
+  // Exit Realtime
 }
+
 
 const char* make_string_copy(std::string s) {
   char* p = new char[s.length() + 1];
@@ -90,6 +91,7 @@ const char* make_string_copy(std::string s) {
   const char* r = p;
   return r;
 }
+
 
 bool create_shared_memory(HANDLE &h_map_file)
 {
@@ -109,6 +111,7 @@ bool create_shared_memory(HANDLE &h_map_file)
   _tprintf("Opened shared memory: %s\n", shared_memory_name);
   return true;
 }
+
 
 bool write_shared_memory(const HANDLE &h_map_file, const char* message_to_write)
 {
@@ -149,15 +152,17 @@ bool write_shared_memory(const HANDLE &h_map_file, const char* message_to_write)
   return true;
 }
 
+
 void ChatTransceiverPlugin::open_shared_memory()
 {
   const bool created = create_shared_memory(h_map_file_);
   if (! created)
   {
-    mEnabled = false;
+    m_enabled_ = false;
     _tprintf(TEXT("Could not create shared memory.\n"));
   }
 }
+
 
 void ChatTransceiverPlugin::close_shared_memory() const
 {
@@ -165,12 +170,13 @@ void ChatTransceiverPlugin::close_shared_memory() const
   CloseHandle(h_map_file_);
 }
 
+
 std::string ChatTransceiverPlugin::read_shared_memory() const
 {
   std::string result;
-  if (! mEnabled) { return result; }
-  
-  char *buf = static_cast<char*>(
+  if (! m_enabled_) { return result; }
+
+  const char *buf = static_cast<char*>(
     ::MapViewOfFile(h_map_file_,
       FILE_MAP_ALL_ACCESS, 0, 0, BUF_SIZE)
   );
@@ -188,38 +194,58 @@ std::string ChatTransceiverPlugin::read_shared_memory() const
   return copy_result;
 }
 
+
+bool ChatTransceiverPlugin::update_from_shared_memory(std::string& message, unsigned char& destination) const
+{
+  // Read shared memory content
+  const std::string mem_content = read_shared_memory();
+  if (mem_content.empty()) { return false; }
+
+  // Get the first chr as destination
+  const std::string mem_destination = mem_content.substr(0, 1);
+  if (mem_destination != "0" || mem_destination != "1") { return false; }
+
+  // Get message content
+  const std::string mem_message = mem_content.substr(1, 129);
+  if (mem_message.empty()) { return false; }
+
+  // Update message and destination by reference
+  message = mem_message;
+  destination = static_cast<unsigned char>(*mem_destination.c_str());
+  return true;
+}
+
+
 bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msg_info)
 {
-  if (! mEnabled) { return false; }
-  if (! inside_realtime_) { return false; }
+  if (! m_enabled_) { return false; }
 
   // Display Welcome Message
   if (! displayed_welcome_message_)
   {
     msg_info.mDestination = 0;
     msg_info.mTranslate = 0;
-    sprintf(msg_info.mText, "ChatTransceiver plugin started.");
+    std::strcpy(msg_info.mText, "ChatTransceiver plugin started.");
     displayed_welcome_message_ = true;
     
     return true;
   }
 
-  // Read message from shared memory
-  const std::string message = read_shared_memory();
+  // Read message and destination from shared memory
+  std::string message;
+  unsigned char destination;
+  if (! update_from_shared_memory(message, destination)) { return false; }
   if (message == last_message_) { return false; }
-
+  
   // Display new message
-  if (! message.empty())
-  {
-    msg_info.mDestination = 0;
-    msg_info.mTranslate = 0;
-    sprintf(msg_info.mText, message.c_str());
-    last_message_ = message;
-    
-    return true; 
-  }
-  return false;
+  msg_info.mDestination = destination;
+  msg_info.mTranslate = 0;
+  std::strcpy(msg_info.mText, message.c_str());
+  last_message_ = message;
+  
+  return true;
 }
+
 
 extern "C" __declspec( dllexport )
 bool __cdecl send_message(const char* messages_chars)

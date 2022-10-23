@@ -22,7 +22,6 @@
 #include <string>
 #include <windows.h>
 #include <conio.h>
-#include <tchar.h>
 
 #include "InternalsPlugin.hpp"
 bool open_shared_memory(HANDLE h_map_file);
@@ -49,18 +48,19 @@ class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported f
   // Methods
   bool WantsToDisplayMessage( MessageInfoV01 &msg_info) override;
  private:
-  double mET{};  // needed for the hardware example
-  bool mEnabled{}; // needed for the hardware example
-  bool inside_realtime_;
+  double m_et_;  // needed for the hardware example
+  bool m_enabled_; // needed for the hardware example
   bool displayed_welcome_message_ = false;
  
   // Shared Memory
   HANDLE h_map_file_;
   std::string last_message_;
 
+  // Methods
   void open_shared_memory();
   void close_shared_memory() const;
   std::string read_shared_memory() const;
+  bool update_from_shared_memory(std::string& message, unsigned char& destination) const;
 };
 
 
