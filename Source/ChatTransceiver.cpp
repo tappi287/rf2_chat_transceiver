@@ -141,7 +141,7 @@ ChatTransceiverPlugin::~ChatTransceiverPlugin()
 void ChatTransceiverPlugin::Startup( long version )
 {
 #ifdef ENABLE_LOG
-  WriteLog("--STARTUP--");
+  write_log"--STARTUP--");
 #endif
   
   // default HW control enabled to true
@@ -154,7 +154,7 @@ void ChatTransceiverPlugin::Shutdown()
 {
   close_shared_memory();
 #ifdef ENABLE_LOG
-  WriteLog("--SHUTDOWN--");
+  write_log"--SHUTDOWN--");
 #endif /* ENABLE_LOG */
   m_enabled_ = false;
 }
@@ -164,7 +164,7 @@ void ChatTransceiverPlugin::StartSession()
 {
   // Start of Session
 #ifdef ENABLE_LOG
-  WriteLog("--STARTSESSION--");
+  write_log"--STARTSESSION--");
 #endif
 }
 
@@ -173,7 +173,7 @@ void ChatTransceiverPlugin::EndSession()
 {
   // End of Session
 #ifdef ENABLE_LOG
-  WriteLog("--ENDSESSION--");
+  write_log"--ENDSESSION--");
   if (out_file) {
     fclose(out_file);
     out_file = nullptr;
@@ -188,7 +188,7 @@ void ChatTransceiverPlugin::EnterRealtime()
   m_et_ = 0.0;
   inside_realtime_ = true;
 #ifdef ENABLE_LOG
-  WriteLog("--ENTERREALTIME--");
+  write_log"--ENTERREALTIME--");
 #endif
 }
 
@@ -196,7 +196,7 @@ void ChatTransceiverPlugin::EnterRealtime()
 void ChatTransceiverPlugin::ExitRealtime()
 {
 #ifdef ENABLE_LOG
-  WriteLog("--EXITREALTIME--");
+  write_log"--EXITREALTIME--");
 #endif
   inside_realtime_ = false;
   clear_shared_memory();
@@ -225,7 +225,7 @@ void ChatTransceiverPlugin::open_shared_memory()
   {
     m_enabled_ = false;
 #ifdef ENABLE_LOG
-    WriteLog("Could not create shared memory.\n");
+    write_log"Could not create shared memory.\n");
 #endif
   }
 }
@@ -302,7 +302,7 @@ bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msgInfo )
     displayed_welcome_message_ = true;
 
 #ifdef ENABLE_LOG
-    WriteLog("Displayed welcome message.\n");
+    write_log"Displayed welcome message.\n");
 #endif 
     
     return true;
