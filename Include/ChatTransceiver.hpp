@@ -48,13 +48,13 @@ class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported f
   // Methods
   bool WantsToDisplayMessage( MessageInfoV01 &msg_info) override;
  private:
-  double m_et_;  // needed for the hardware example
-  bool m_enabled_; // needed for the hardware example
+  double m_et_{};
+  bool m_enabled_{};
   bool displayed_welcome_message_ = false;
  
   // Shared Memory
-  HANDLE h_map_file_;
-  std::string last_message_;
+  HANDLE h_map_file_{};
+  std::string last_message_{};
 
   // Methods
   void open_shared_memory();
