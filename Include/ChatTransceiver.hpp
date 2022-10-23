@@ -44,6 +44,7 @@ class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported f
   // Methods
   void open_shared_memory();
   void close_shared_memory() const;
+  void clear_shared_memory() const;
   std::string read_shared_memory() const;
   bool update_from_shared_memory(std::string& message, unsigned char& destination) const;
   static void WriteLog(const char * const msg);

@@ -31,7 +31,7 @@ FILE* out_file = nullptr;
 // Shared Memory buffer size
 #define BUF_SIZE 256
 TCHAR shared_memory_name[] = "rF2_ChatTransceiver_SM";
-
+char empty[BUF_SIZE];
 
 bool create_shared_memory(HANDLE &h_map_file)
 {
@@ -44,11 +44,17 @@ bool create_shared_memory(HANDLE &h_map_file)
               shared_memory_name);     // name of mapping object
   if (h_map_file == nullptr)
   {
+#ifdef ENABLE_LOG
     _tprintf(TEXT("Could not create file mapping object (%lu).\n"),
              GetLastError());
+#endif
     return false;
   }
+
+#ifdef ENABLE_LOG
   _tprintf("Opened shared memory: %s\n", shared_memory_name);
+#endif
+  
   return true;
 }
 
@@ -82,14 +88,22 @@ bool write_shared_memory(const HANDLE &h_map_file, const char* message_to_write)
   }
 
   // write shared memory
+#ifdef ENABLE_LOG
   _tprintf("write_shared_memory: Writing to memory %llu\n", write_size);
+#endif
   CopyMemory(p_buf, t_msg, write_size);
-  // _getch(); // will block!?
 
   // release resources
-  _tprintf("write_shared_memory: Unmapping view\n");
   UnmapViewOfFile(p_buf);
   return true;
+}
+
+
+const char* make_string_copy(std::string s) {
+  char* p = new char[s.length() + 1];
+  strcpy_s(p, s.length() + 1, s.c_str());
+  const char* r = p;
+  return r;
 }
 
 
@@ -174,6 +188,7 @@ void ChatTransceiverPlugin::ExitRealtime()
   WriteLog("--EXITREALTIME--");
 #endif
   inside_realtime_ = false;
+  clear_shared_memory();
 }
 
 void ChatTransceiverPlugin::WriteLog(const char * const msg)
@@ -189,14 +204,6 @@ void ChatTransceiverPlugin::WriteLog(const char * const msg)
       fprintf(out_file, "%s\n", msg);
     }
 #endif
-}
-
-
-const char* make_string_copy(std::string s) {
-  char* p = new char[s.length() + 1];
-  strcpy_s(p, s.length() + 1, s.c_str());
-  const char* r = p;
-  return r;
 }
 
 
@@ -220,6 +227,23 @@ void ChatTransceiverPlugin::close_shared_memory() const
 }
 
 
+void ChatTransceiverPlugin::clear_shared_memory() const
+{
+  if (h_map_file_ == nullptr) { return; }
+  const auto p_buf = MapViewOfFile(h_map_file_, FILE_MAP_ALL_ACCESS,
+    0,0,BUF_SIZE);
+  if (p_buf == nullptr) {
+#ifdef ENABLE_LOG
+    fprintf(out_file, "clear_shared_memory: Could not map view of file (%lu).\n",
+             GetLastError());
+#endif
+    return;
+  }
+  ZeroMemory(p_buf, BUF_SIZE);
+  UnmapViewOfFile(p_buf);
+}
+
+
 std::string ChatTransceiverPlugin::read_shared_memory() const
 {
   std::string result;
@@ -233,9 +257,7 @@ std::string ChatTransceiverPlugin::read_shared_memory() const
   if (buf == nullptr)
   {
 #ifdef ENABLE_LOG
-    char* log_msg{};
-    sprintf(log_msg, "Could not map view of file (%lu).\n", GetLastError());
-    WriteLog(log_msg);
+    fprintf(out_file, "Could not map view of file (%lu).\n", GetLastError());
 #endif
     return result;
   }
@@ -252,11 +274,11 @@ bool ChatTransceiverPlugin::update_from_shared_memory(std::string& message, unsi
   // Read shared memory content
   const std::string mem_content = read_shared_memory();
   if (mem_content.empty()) { return false; }
-
+  
   // Get the first chr as destination
   const std::string mem_destination = mem_content.substr(0, 1);
-  if (mem_destination != "0" || mem_destination != "1") { return false; }
-
+  if (mem_destination != "0" && mem_destination != "1") { return false; }
+  
   // Get message content
   const std::string mem_message = mem_content.substr(1, 129);
   if (mem_message.empty()) { return false; }
@@ -264,6 +286,9 @@ bool ChatTransceiverPlugin::update_from_shared_memory(std::string& message, unsi
   // Update message and destination by reference
   message = mem_message;
   destination = static_cast<unsigned char>(*mem_destination.c_str());
+
+  // Clear shared memory
+  clear_shared_memory();
   return true;
 }
 
@@ -277,11 +302,11 @@ bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msgInfo )
   {
     msgInfo.mDestination = 0;
     msgInfo.mTranslate = 0;
-    std::strcpy(msgInfo.mText, "ChatTransceiver plugin started.");
+    std::strcpy(msgInfo.mText, "ChatTransceiver started.");
     displayed_welcome_message_ = true;
 
 #ifdef ENABLE_LOG
-    WriteLog("Displayed welcome message.");
+    WriteLog("Displayed welcome message.\n");
 #endif 
     
     return true;
@@ -300,7 +325,7 @@ bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msgInfo )
   last_message_ = message;
 
 #ifdef ENABLE_LOG
-  fprintf(out_file, "Displayed message: %s", message.c_str());
+  fprintf(out_file, "Displayed message: %s\n", message.c_str());
 #endif 
 
   return true;
