@@ -1,21 +1,3 @@
-//‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹
-//›                                                                         ﬁ
-//› Module: Internals Example Header File                                   ﬁ
-//›                                                                         ﬁ
-//› Description: Declarations for the Internals Example Plugin              ﬁ
-//›                                                                         ﬁ
-//›                                                                         ﬁ
-//› This source code module, and all information, data, and algorithms      ﬁ
-//› associated with it, are part of CUBE technology (tm).                   ﬁ
-//›                 PROPRIETARY AND CONFIDENTIAL                            ﬁ
-//› Copyright (c) 1996-2014 Image Space Incorporated.  All rights reserved. ﬁ
-//›                                                                         ﬁ
-//›                                                                         ﬁ
-//› Change history:                                                         ﬁ
-//›   tag.2005.11.30: created                                               ﬁ
-//›                                                                         ﬁ
-//ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ
-
 #ifndef _INTERNALS_EXAMPLE_H
 #define _INTERNALS_EXAMPLE_H
 
@@ -52,6 +34,7 @@ class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported f
  private:
   double m_et_{};
   bool m_enabled_{};
+  bool inside_realtime_ = false;
   bool displayed_welcome_message_ = false;
  
   // Shared Memory

@@ -1,21 +1,3 @@
-//‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹‹
-//›                                                                         ﬁ
-//› Module: Internals Example Source File                                   ﬁ
-//›                                                                         ﬁ
-//› Description: Declarations for the Internals Example Plugin              ﬁ
-//›                                                                         ﬁ
-//›                                                                         ﬁ
-//› This source code module, and all information, data, and algorithms      ﬁ
-//› associated with it, are part of CUBE technology (tm).                   ﬁ
-//›                 PROPRIETARY AND CONFIDENTIAL                            ﬁ
-//› Copyright (c) 1996-2014 Image Space Incorporated.  All rights reserved. ﬁ
-//›                                                                         ﬁ
-//›                                                                         ﬁ
-//› Change history:                                                         ﬁ
-//›   tag.2005.11.30: created                                               ﬁ
-//›                                                                         ﬁ
-//ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ
-
 #include "ChatTransceiver.hpp"  // corresponding header file
 
 #include "atlstr.h"
@@ -40,6 +22,11 @@ PluginObject * __cdecl CreatePluginObject()            { return( (PluginObject *
 extern "C" __declspec( dllexport )
 void __cdecl DestroyPluginObject( PluginObject *obj )  { delete( (ChatTransceiverPlugin *) obj ); }
 
+
+// Logging
+#ifdef ENABLE_LOG
+FILE* out_file = nullptr;
+#endif
 
 // Shared Memory buffer size
 #define BUF_SIZE 256
@@ -106,15 +93,6 @@ bool write_shared_memory(const HANDLE &h_map_file, const char* message_to_write)
 }
 
 
-// Constants
-bool displayed_message = false;
-
-// Logging
-#ifdef ENABLE_LOG
-FILE* out_file = nullptr;
-#endif
-
-
 ChatTransceiverPlugin::ChatTransceiverPlugin()
 {
   m_enabled_ = false;
@@ -153,19 +131,22 @@ void ChatTransceiverPlugin::Shutdown()
 #ifdef ENABLE_LOG
   WriteLog("--SHUTDOWN--");
 #endif /* ENABLE_LOG */
+  m_enabled_ = false;
 }
 
 
 void ChatTransceiverPlugin::StartSession()
 {
+  // Start of Session
 #ifdef ENABLE_LOG
   WriteLog("--STARTSESSION--");
-#endif /* ENABLE_LOG */
+#endif
 }
 
 
 void ChatTransceiverPlugin::EndSession()
 {
+  // End of Session
 #ifdef ENABLE_LOG
   WriteLog("--ENDSESSION--");
   if (out_file) {
@@ -173,7 +154,6 @@ void ChatTransceiverPlugin::EndSession()
     out_file = nullptr;
   }
 #endif /* ENABLE_LOG */
-  displayed_message = false;
 }
 
 
@@ -181,17 +161,24 @@ void ChatTransceiverPlugin::EnterRealtime()
 {
   // start up timer every time we enter realtime
   m_et_ = 0.0;
+  inside_realtime_ = true;
+#ifdef ENABLE_LOG
+  WriteLog("--ENTERREALTIME--");
+#endif
 }
 
 
 void ChatTransceiverPlugin::ExitRealtime()
 {
-  // Exit Realtime
+#ifdef ENABLE_LOG
+  WriteLog("--EXITREALTIME--");
+#endif
+  inside_realtime_ = false;
 }
 
 void ChatTransceiverPlugin::WriteLog(const char * const msg)
 {
-  #ifdef ENABLE_LOG
+#ifdef ENABLE_LOG
     if (out_file == nullptr)
     {
       out_file = fopen(LOG_FILE, "a");
@@ -201,8 +188,10 @@ void ChatTransceiverPlugin::WriteLog(const char * const msg)
     {
       fprintf(out_file, "%s\n", msg);
     }
-  #endif
+#endif
 }
+
+
 const char* make_string_copy(std::string s) {
   char* p = new char[s.length() + 1];
   strcpy_s(p, s.length() + 1, s.c_str());
@@ -281,7 +270,7 @@ bool ChatTransceiverPlugin::update_from_shared_memory(std::string& message, unsi
 
 bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msgInfo )
 {
-  if (! m_enabled_) { return false; }
+  if (! m_enabled_ || ! inside_realtime_) { return false; }
 
   // Display Welcome Message
   if (! displayed_welcome_message_)
@@ -307,7 +296,7 @@ bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msgInfo )
   // Display new message
   msgInfo.mDestination = destination;
   msgInfo.mTranslate = 0;
-  sprintf(msgInfo.mText, message.c_str());
+  std::strcpy(msgInfo.mText, message.c_str());
   last_message_ = message;
 
 #ifdef ENABLE_LOG
