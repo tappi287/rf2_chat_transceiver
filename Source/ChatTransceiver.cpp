@@ -23,8 +23,6 @@
 #include <cstdio>              // for sample output
 #include <string>
 
-// Shared Memory buffer size
-#define BUF_SIZE 256
 
 // plugin information
 extern "C" __declspec( dllexport )
@@ -42,55 +40,10 @@ PluginObject * __cdecl CreatePluginObject()            { return( (PluginObject *
 extern "C" __declspec( dllexport )
 void __cdecl DestroyPluginObject( PluginObject *obj )  { delete( (ChatTransceiverPlugin *) obj ); }
 
-// Constants
+
+// Shared Memory buffer size
+#define BUF_SIZE 256
 TCHAR shared_memory_name[] = "rF2_ChatTransceiver_SM";
-
-
-void ChatTransceiverPlugin::Startup( long version )
-{
-  // default HW control enabled to true
-  m_enabled_ = true;
-  open_shared_memory();
-}
-
-
-void ChatTransceiverPlugin::Shutdown()
-{
-  close_shared_memory();
-}
-
-
-void ChatTransceiverPlugin::StartSession()
-{
-  // WriteToAllExampleOutputFiles( "a", "--STARTSESSION--" );
-}
-
-
-void ChatTransceiverPlugin::EndSession()
-{
-  // WriteToAllExampleOutputFiles( "a", "--ENDSESSION--" );
-}
-
-
-void ChatTransceiverPlugin::EnterRealtime()
-{
-  // start up timer every time we enter realtime
-  m_et_ = 0.0;
-}
-
-
-void ChatTransceiverPlugin::ExitRealtime()
-{
-  // Exit Realtime
-}
-
-
-const char* make_string_copy(std::string s) {
-  char* p = new char[s.length() + 1];
-  strcpy_s(p, s.length() + 1, s.c_str());
-  const char* r = p;
-  return r;
-}
 
 
 bool create_shared_memory(HANDLE &h_map_file)
@@ -153,13 +106,120 @@ bool write_shared_memory(const HANDLE &h_map_file, const char* message_to_write)
 }
 
 
+// Constants
+bool displayed_message = false;
+
+// Logging
+#ifdef ENABLE_LOG
+FILE* out_file = nullptr;
+#endif
+
+
+ChatTransceiverPlugin::ChatTransceiverPlugin()
+{
+  m_enabled_ = false;
+  m_et_ = 0.0;
+}
+
+
+ChatTransceiverPlugin::~ChatTransceiverPlugin()
+{
+  m_enabled_ = false;
+  m_et_ = 0.0;
+#ifdef ENABLE_LOG
+  if (out_file) {
+    fclose(out_file);
+    out_file = nullptr;
+  }
+#endif
+}
+
+
+void ChatTransceiverPlugin::Startup( long version )
+{
+#ifdef ENABLE_LOG
+  WriteLog("--STARTUP--");
+#endif
+  
+  // default HW control enabled to true
+  m_enabled_ = true;
+  open_shared_memory();
+}
+
+
+void ChatTransceiverPlugin::Shutdown()
+{
+  close_shared_memory();
+#ifdef ENABLE_LOG
+  WriteLog("--SHUTDOWN--");
+#endif /* ENABLE_LOG */
+}
+
+
+void ChatTransceiverPlugin::StartSession()
+{
+#ifdef ENABLE_LOG
+  WriteLog("--STARTSESSION--");
+#endif /* ENABLE_LOG */
+}
+
+
+void ChatTransceiverPlugin::EndSession()
+{
+#ifdef ENABLE_LOG
+  WriteLog("--ENDSESSION--");
+  if (out_file) {
+    fclose(out_file);
+    out_file = nullptr;
+  }
+#endif /* ENABLE_LOG */
+  displayed_message = false;
+}
+
+
+void ChatTransceiverPlugin::EnterRealtime()
+{
+  // start up timer every time we enter realtime
+  m_et_ = 0.0;
+}
+
+
+void ChatTransceiverPlugin::ExitRealtime()
+{
+  // Exit Realtime
+}
+
+void ChatTransceiverPlugin::WriteLog(const char * const msg)
+{
+  #ifdef ENABLE_LOG
+    if (out_file == nullptr)
+    {
+      out_file = fopen(LOG_FILE, "a");
+    }
+
+    if (out_file != nullptr)
+    {
+      fprintf(out_file, "%s\n", msg);
+    }
+  #endif
+}
+const char* make_string_copy(std::string s) {
+  char* p = new char[s.length() + 1];
+  strcpy_s(p, s.length() + 1, s.c_str());
+  const char* r = p;
+  return r;
+}
+
+
 void ChatTransceiverPlugin::open_shared_memory()
 {
   const bool created = create_shared_memory(h_map_file_);
   if (! created)
   {
     m_enabled_ = false;
-    _tprintf(TEXT("Could not create shared memory.\n"));
+#ifdef ENABLE_LOG
+    WriteLog("Could not create shared memory.\n");
+#endif
   }
 }
 
@@ -183,8 +243,11 @@ std::string ChatTransceiverPlugin::read_shared_memory() const
   
   if (buf == nullptr)
   {
-    _tprintf(TEXT("Could not map view of file (%lu).\n"),
-             GetLastError());
+#ifdef ENABLE_LOG
+    char* log_msg{};
+    sprintf(log_msg, "Could not map view of file (%lu).\n", GetLastError());
+    WriteLog(log_msg);
+#endif
     return result;
   }
   result = buf;
@@ -216,17 +279,21 @@ bool ChatTransceiverPlugin::update_from_shared_memory(std::string& message, unsi
 }
 
 
-bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msg_info)
+bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msgInfo )
 {
   if (! m_enabled_) { return false; }
 
   // Display Welcome Message
   if (! displayed_welcome_message_)
   {
-    msg_info.mDestination = 0;
-    msg_info.mTranslate = 0;
-    std::strcpy(msg_info.mText, "ChatTransceiver plugin started.");
+    msgInfo.mDestination = 0;
+    msgInfo.mTranslate = 0;
+    std::strcpy(msgInfo.mText, "ChatTransceiver plugin started.");
     displayed_welcome_message_ = true;
+
+#ifdef ENABLE_LOG
+    WriteLog("Displayed welcome message.");
+#endif 
     
     return true;
   }
@@ -238,11 +305,15 @@ bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msg_info)
   if (message == last_message_) { return false; }
   
   // Display new message
-  msg_info.mDestination = destination;
-  msg_info.mTranslate = 0;
-  std::strcpy(msg_info.mText, message.c_str());
+  msgInfo.mDestination = destination;
+  msgInfo.mTranslate = 0;
+  sprintf(msgInfo.mText, message.c_str());
   last_message_ = message;
-  
+
+#ifdef ENABLE_LOG
+  fprintf(out_file, "Displayed message: %s", message.c_str());
+#endif 
+
   return true;
 }
 
@@ -250,16 +321,16 @@ bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msg_info)
 extern "C" __declspec( dllexport )
 bool __cdecl send_message(const char* messages_chars)
 {
-  _tprintf("add_message: Creating and opening handle\n");
+  _tprintf("send_message: Creating and opening handle\n");
   HANDLE e_h_map_file = INVALID_HANDLE_VALUE;
   const bool shared_memory_created = create_shared_memory(e_h_map_file);
   if (! shared_memory_created) { return false; }
 
-  _tprintf("add_message: writing to handle\n");
+  _tprintf("send_message: writing to handle\n");
   const bool write_success = write_shared_memory(e_h_map_file, messages_chars);
-  _tprintf("add_message: Closing Handle\n");
+  _tprintf("send_message: Closing Handle\n");
   CloseHandle(e_h_map_file);
 
-  _tprintf("add_message: Handle closed\n");
+  _tprintf("send_message: Handle closed\n");
   return write_success;
 }

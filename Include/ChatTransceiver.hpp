@@ -24,15 +24,17 @@
 #include <conio.h>
 
 #include "InternalsPlugin.hpp"
-bool open_shared_memory(HANDLE h_map_file);
+
+#define ENABLE_LOG
+#define LOG_FILE "UserData\\Log\\ChatTranceiver.log"
 
 // This is used for the app to use the plugin for its intended purpose
 class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported function GetPluginVersion() should return 1 if you are deriving from this InternalsPluginV01, 2 for InternalsPluginV02, etc.
 {
  public:
   // Constructor/destructor
-  ChatTransceiverPlugin() = default;
-  ~ChatTransceiverPlugin() override = default;
+  ChatTransceiverPlugin();
+  ~ChatTransceiverPlugin() override;
 
   // These are the functions derived from base class InternalsPlugin
   // that can be implemented.
@@ -46,7 +48,7 @@ class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported f
   void EndSession() override;             // session has ended
  
   // Methods
-  bool WantsToDisplayMessage( MessageInfoV01 &msg_info) override;
+  bool WantsToDisplayMessage( MessageInfoV01 &msgInfo) override;
  private:
   double m_et_{};
   bool m_enabled_{};
@@ -61,6 +63,7 @@ class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported f
   void close_shared_memory() const;
   std::string read_shared_memory() const;
   bool update_from_shared_memory(std::string& message, unsigned char& destination) const;
+  static void WriteLog(const char * const msg);
 };
 
 
