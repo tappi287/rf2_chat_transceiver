@@ -7,7 +7,7 @@
 
 #include "InternalsPlugin.hpp"
 
-#define ENABLE_LOG
+#undef ENABLE_LOG
 #define LOG_FILE "UserData\\Log\\ChatTranceiver.log"
 
 // This is used for the app to use the plugin for its intended purpose
@@ -47,7 +47,7 @@ class ChatTransceiverPlugin : public InternalsPluginV07  // REMINDER: exported f
   void clear_shared_memory() const;
   std::string read_shared_memory() const;
   bool update_from_shared_memory(std::string& message, unsigned char& destination) const;
-  static void WriteLog(const char * const msg);
+  static void write_log(const char * const msg);
 };
 
 

@@ -31,7 +31,7 @@ FILE* out_file = nullptr;
 // Shared Memory buffer size
 #define BUF_SIZE 256
 TCHAR shared_memory_name[] = "rF2_ChatTransceiver_SM";
-char empty[BUF_SIZE];
+
 
 bool create_shared_memory(HANDLE &h_map_file)
 {
@@ -59,25 +59,29 @@ bool create_shared_memory(HANDLE &h_map_file)
 }
 
 
+bool open_shared_memory_handle(HANDLE &h_map_file)
+{
+  h_map_file = ::OpenFileMapping(FILE_MAP_ALL_ACCESS, 0, shared_memory_name);
+  if (h_map_file == nullptr) { return false; }
+
+  return true;
+}
+
+
 bool write_shared_memory(const HANDLE &h_map_file, const char* message_to_write)
 {
   // Check size
-  const size_t size = strlen(message_to_write);
-  if (size > BUF_SIZE)
+  const std::string message = message_to_write;
+  if (message.size() > BUF_SIZE)
   {
     // Skip large messages
-    _tprintf("write_shared_memory: Message of length %llu too large!\n", size);
+    _tprintf("write_shared_memory: Message of length %llu too large!\n", message.size());
     return false;
   }
   
-  // Convert const char*
-  TCHAR t_msg [BUF_SIZE];
-  _tcscpy(t_msg, A2T(const_cast<LPSTR>(message_to_write)));
-  const auto write_size = _tcslen(t_msg) * sizeof(TCHAR);
-  
   // Open
   const auto p_buf = MapViewOfFile(h_map_file,   // handle to map object
-                                  FILE_MAP_ALL_ACCESS, // read/write permission
+                                  FILE_MAP_WRITE,      // read/write permission
                                   0,
                                   0,
                                   BUF_SIZE);
@@ -91,7 +95,8 @@ bool write_shared_memory(const HANDLE &h_map_file, const char* message_to_write)
 #ifdef ENABLE_LOG
   _tprintf("write_shared_memory: Writing to memory %llu\n", write_size);
 #endif
-  CopyMemory(p_buf, t_msg, write_size);
+  
+  CopyMemory(p_buf, message.c_str(), message.size());
 
   // release resources
   UnmapViewOfFile(p_buf);
@@ -99,11 +104,17 @@ bool write_shared_memory(const HANDLE &h_map_file, const char* message_to_write)
 }
 
 
-const char* make_string_copy(std::string s) {
-  char* p = new char[s.length() + 1];
-  strcpy_s(p, s.length() + 1, s.c_str());
-  const char* r = p;
-  return r;
+void read_shared_memory_a(const HANDLE &h_map_file, std::string& result)
+{
+  if (h_map_file == nullptr) { return; }
+  const char *buf = static_cast<char*>(
+      ::MapViewOfFile(h_map_file,
+        FILE_MAP_READ, 0, 0, BUF_SIZE)
+    );
+  if (buf == nullptr) { return; }
+  
+  result = buf;
+  UnmapViewOfFile(buf);
 }
 
 
@@ -191,7 +202,7 @@ void ChatTransceiverPlugin::ExitRealtime()
   clear_shared_memory();
 }
 
-void ChatTransceiverPlugin::WriteLog(const char * const msg)
+void ChatTransceiverPlugin::write_log(const char * const msg)
 {
 #ifdef ENABLE_LOG
     if (out_file == nullptr)
@@ -249,23 +260,8 @@ std::string ChatTransceiverPlugin::read_shared_memory() const
   std::string result;
   if (! m_enabled_) { return result; }
 
-  const char *buf = static_cast<char*>(
-    ::MapViewOfFile(h_map_file_,
-      FILE_MAP_ALL_ACCESS, 0, 0, BUF_SIZE)
-  );
-  
-  if (buf == nullptr)
-  {
-#ifdef ENABLE_LOG
-    fprintf(out_file, "Could not map view of file (%lu).\n", GetLastError());
-#endif
-    return result;
-  }
-  result = buf;
-  std::string copy_result = make_string_copy(result);
-  
-  UnmapViewOfFile(buf);
-  return copy_result;
+  ::read_shared_memory_a(h_map_file_, result);
+  return result;
 }
 
 
@@ -335,13 +331,16 @@ bool ChatTransceiverPlugin::WantsToDisplayMessage( MessageInfoV01 &msgInfo )
 extern "C" __declspec( dllexport )
 bool __cdecl send_message(const char* messages_chars)
 {
-  _tprintf("send_message: Creating and opening handle\n");
+  _tprintf("send_message: Opening handle\n");
   HANDLE e_h_map_file = INVALID_HANDLE_VALUE;
-  const bool shared_memory_created = create_shared_memory(e_h_map_file);
-  if (! shared_memory_created) { return false; }
+  if (! ::open_shared_memory_handle(e_h_map_file))
+  {
+    _tprintf("send_message: could not open handle, is rF2 running?\n");
+    return false;
+  }
 
   _tprintf("send_message: writing to handle\n");
-  const bool write_success = write_shared_memory(e_h_map_file, messages_chars);
+  const bool write_success = ::write_shared_memory(e_h_map_file, messages_chars);
   _tprintf("send_message: Closing Handle\n");
   CloseHandle(e_h_map_file);
 
