@@ -28,7 +28,7 @@
 
 // plugin information
 extern "C" __declspec( dllexport )
-const char * __cdecl GetPluginName()                   { return( "ChatTransceiverPlugin - 2022.10.16" ); }
+const char * __cdecl GetPluginName()                   { return( "ChatTransceiverPlugin - 2022.10.23" ); }
 
 extern "C" __declspec( dllexport )
 PluginObjectType __cdecl GetPluginType()               { return( PO_INTERNALS ); }
