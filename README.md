@@ -26,4 +26,4 @@ A Python client example can be found in [Examples](/Example/send_message_example
 #### Message Format
 First character should be an unsigned char indicating the destination: 0 - message center, 1 - multiplayer chat. Followed by up to 128 characters.
 
-Example: `0Hello World.` - will display `Hello World` in the in-game message center.
+Example: `0Hello World.` - will display `Hello World.` in the in-game message center.
