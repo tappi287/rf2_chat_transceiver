@@ -18,7 +18,7 @@ The plugin will open a Windows shared memory handle, read message and destinatio
 There is no messaging queue as the in-game message center will already queue the messages.
 
 There are two methods you could use programmatically to trigger a message:
-- call the dll method `send_message` and pass a `const char*` to it, take a look at the [source from line 330](/Source/ChatTransceiver.cpp)
+- call the dll method `send_message` and pass a `const char*` to it, take a look at the [source from line 330](/Source/ChatTransceiver.cpp#L331)
 - access shared memory with name `rF2_ChatTransceiver_SM` and write characters is to it respecting Message Format
 
 A Python client example can be found in [Examples](/Example/send_message_example.py)
